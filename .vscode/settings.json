@@ -1,0 +1,10 @@
+{
+    "files.associations": {
+        "crypto_aead.h": "c",
+        "elephant_200.h": "c",
+        "stdio.h": "c",
+        "string.h": "c",
+        "api.h": "c"
+    },
+    "code-runner.runInTerminal": true
+}
