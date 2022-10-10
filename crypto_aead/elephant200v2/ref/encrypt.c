@@ -2,7 +2,8 @@
 #include "crypto_aead.h"
 #include <string.h>
 #include "elephant_200.h"
-
+#include "keccak.c"
+#include <stdio.h>
 
 BYTE rotl(BYTE b)
 {
@@ -96,6 +97,7 @@ void crypto_aead_impl(
     BYTE* c, BYTE* tag, const BYTE* m, SIZE mlen, const BYTE* ad, SIZE adlen,
     const BYTE* npub, const BYTE* k, int encrypt)
 {
+    printf("start3\n");
     // Compute number of blocks
     const SIZE nblocks_c  = 1 + mlen / BLOCK_SIZE;
     const SIZE nblocks_m  = (mlen % BLOCK_SIZE) ? nblocks_c : nblocks_c - 1;
@@ -123,6 +125,9 @@ void crypto_aead_impl(
     // Tag buffer and initialization of tag to zero
     BYTE tag_buffer[BLOCK_SIZE] = {0};
     get_ad_block(tag_buffer, ad, adlen, npub, 0);
+    printf("\nGET: %s\n", tag_buffer);
+
+    printf("\n\nFIRST TAG:\n%s\n\n", tag_buffer);
 
     SIZE offset = 0;
     for(SIZE i = 0; i < nb_it; ++i) {
@@ -137,9 +142,9 @@ void crypto_aead_impl(
             permutation(buffer);
             xor_block(buffer, current_mask, BLOCK_SIZE);
             xor_block(buffer, next_mask, BLOCK_SIZE);
-            const SIZE r_size = (i == nblocks_m - 1) ? mlen - offset : BLOCK_SIZE;
-            xor_block(buffer, m + offset, r_size);
-            memcpy(c + offset, buffer, r_size);
+            const SIZE r_size = (i == nblocks_m - 1) ? mlen - offset : BLOCK_SIZE; // QUESTION
+            xor_block(buffer, m + offset, r_size); // QUESTION
+            memcpy(c + offset, buffer, r_size); // QUESTION
         }
 
 
@@ -152,6 +157,7 @@ void crypto_aead_impl(
             xor_block(buffer, previous_mask, BLOCK_SIZE);
             xor_block(buffer, next_mask, BLOCK_SIZE);
             xor_block(tag_buffer, buffer, BLOCK_SIZE);
+            printf("CSTEP%i:\n%s\n", i, tag_buffer);
         }
 
         // If there is any AD left, compute tag for AD block 
@@ -161,6 +167,7 @@ void crypto_aead_impl(
             permutation(buffer);
             xor_block(buffer, next_mask, BLOCK_SIZE);
             xor_block(tag_buffer, buffer, BLOCK_SIZE);
+            printf("ASTEP%i:\n%s\n", i+1, tag_buffer);
         }
 
         // Cyclically shift the mask buffers
@@ -172,11 +179,15 @@ void crypto_aead_impl(
 
         offset += BLOCK_SIZE;
     }
+    printf("\ntotal:%s\n", c);
     // Compute tag
     xor_block(tag_buffer, expanded_key, BLOCK_SIZE);
     permutation(tag_buffer);
     xor_block(tag_buffer, expanded_key, BLOCK_SIZE);
     memcpy(tag, tag_buffer, CRYPTO_ABYTES);
+
+    printf("\n\nFINAL MESSAGE:\n%s\n\n", c);
+    printf("\n\nFINAL TAG:\n%s\n\n", tag_buffer);
 }
 
 // Remark: c must be at least mlen + CRYPTO_ABYTES long
@@ -189,7 +200,7 @@ int crypto_aead_encrypt(
   const unsigned char *k)
 {
     (void)nsec;
-    *clen = mlen + CRYPTO_ABYTES;
+    //*clen = mlen + CRYPTO_ABYTES;
     BYTE tag[CRYPTO_ABYTES];
     crypto_aead_impl(c, tag, m, mlen, ad, adlen, npub, k, 1);
     memcpy(c + mlen, tag, CRYPTO_ABYTES);
