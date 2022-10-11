@@ -29,7 +29,7 @@ void lfsr_step(BYTE* output, BYTE* input)
     output[BLOCK_SIZE - 1] = temp;
 }
 
-void xor_block(BYTE* state, const BYTE* block, SIZE size)
+void block_xor(BYTE* state, const BYTE* block, SIZE size)
 {
     for(SIZE i = 0; i < size; ++i)
         state[i] ^= block[i];
@@ -137,13 +137,13 @@ void crypto_aead_impl(
             // Compute ciphertext block
             memcpy(buffer, npub, CRYPTO_NPUBBYTES);
             memset(buffer + CRYPTO_NPUBBYTES, 0, BLOCK_SIZE - CRYPTO_NPUBBYTES);
-            xor_block(buffer, current_mask, BLOCK_SIZE);
-            xor_block(buffer, next_mask, BLOCK_SIZE);
+            block_xor(buffer, current_mask, BLOCK_SIZE);
+            block_xor(buffer, next_mask, BLOCK_SIZE);
             permutation(buffer);
-            xor_block(buffer, current_mask, BLOCK_SIZE);
-            xor_block(buffer, next_mask, BLOCK_SIZE);
+            block_xor(buffer, current_mask, BLOCK_SIZE);
+            block_xor(buffer, next_mask, BLOCK_SIZE);
             const SIZE r_size = (i == nblocks_m - 1) ? mlen - offset : BLOCK_SIZE; // QUESTION
-            xor_block(buffer, m + offset, r_size); // QUESTION
+            block_xor(buffer, m + offset, r_size); // QUESTION
             memcpy(c + offset, buffer, r_size); // QUESTION
         }
 
@@ -151,22 +151,22 @@ void crypto_aead_impl(
         if(i > 0 && i <= nblocks_c) {
             // Compute tag for ciphertext block
             get_c_block(buffer, encrypt ? c : m, mlen, i - 1);
-            xor_block(buffer, previous_mask, BLOCK_SIZE);
-            xor_block(buffer, next_mask, BLOCK_SIZE);
+            block_xor(buffer, previous_mask, BLOCK_SIZE);
+            block_xor(buffer, next_mask, BLOCK_SIZE);
             permutation(buffer);
-            xor_block(buffer, previous_mask, BLOCK_SIZE);
-            xor_block(buffer, next_mask, BLOCK_SIZE);
-            xor_block(tag_buffer, buffer, BLOCK_SIZE);
+            block_xor(buffer, previous_mask, BLOCK_SIZE);
+            block_xor(buffer, next_mask, BLOCK_SIZE);
+            block_xor(tag_buffer, buffer, BLOCK_SIZE);
             printf("CSTEP%i:\n%s\n", i, tag_buffer);
         }
 
         // If there is any AD left, compute tag for AD block 
         if(i + 1 < nblocks_ad) {
             get_ad_block(buffer, ad, adlen, npub, i + 1);
-            xor_block(buffer, next_mask, BLOCK_SIZE);
+            block_xor(buffer, next_mask, BLOCK_SIZE);
             permutation(buffer);
-            xor_block(buffer, next_mask, BLOCK_SIZE);
-            xor_block(tag_buffer, buffer, BLOCK_SIZE);
+            block_xor(buffer, next_mask, BLOCK_SIZE);
+            block_xor(tag_buffer, buffer, BLOCK_SIZE);
             printf("ASTEP%i:\n%s\n", i+1, tag_buffer);
         }
 
@@ -181,9 +181,9 @@ void crypto_aead_impl(
     }
     printf("\ntotal:%s\n", c);
     // Compute tag
-    xor_block(tag_buffer, expanded_key, BLOCK_SIZE);
+    block_xor(tag_buffer, expanded_key, BLOCK_SIZE);
     permutation(tag_buffer);
-    xor_block(tag_buffer, expanded_key, BLOCK_SIZE);
+    block_xor(tag_buffer, expanded_key, BLOCK_SIZE);
     memcpy(tag, tag_buffer, CRYPTO_ABYTES);
 
     printf("\n\nFINAL MESSAGE:\n%s\n\n", c);

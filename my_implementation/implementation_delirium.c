@@ -24,64 +24,65 @@ void LFSR_step(BYTE* output, BYTE* input)
     output[BLOCK_SIZE - 1] = temp;
 }
 
-// XOR for block of a certain size
-void xor_block(BYTE* output, const BYTE* input, SIZE size)
+// XOR for block of length size
+void block_xor(BYTE* output, const BYTE* input, SIZE size)
 {
     for(SIZE i = 0; i < size; ++i)
         output[i] ^= input[i];
 }
 
-// Grab a block of ad using the index (nonce|ad|1)
-void get_block_ad(BYTE* output, BYTE* npub, BYTE* A, SIZE adlen, SIZE index)
+// Grab a block of ad using the index from (nonce||ad||1)
+void block_ad_get(BYTE* output, BYTE* npub, BYTE* A, SIZE adlen, SIZE index)
 {
     SIZE len = 0;
-    // First block contains nonce
-    // Remark: nonce may not be longer then BLOCK_SIZE
+    // Block with index = 0 will contains nonce|ad
     if(index == 0) {
         memcpy(output, npub, CRYPTO_NPUBBYTES);
         len += CRYPTO_NPUBBYTES;
     }
 
-    const SIZE block_offset = index * BLOCK_SIZE - (index != 0) * CRYPTO_NPUBBYTES;
-    // If adlen is divisible by BLOCK_SIZE, add an additional padding block
-    if(index != 0 && block_offset == adlen) {
+    const SIZE block_pos = index * BLOCK_SIZE - (index != 0) * CRYPTO_NPUBBYTES;
+    // Add a padding block if adlen can be divided by BLOCK_SIZE
+    if(index != 0 && block_pos == adlen) {
         memset(output, 0x00, BLOCK_SIZE);
         output[0] = 0x01;
         return;
     }
+
     const SIZE r_outlen = BLOCK_SIZE - len;
-    const SIZE r_adlen  = adlen - block_offset;
+    const SIZE r_adlen  = adlen - block_pos;
     // Fill with associated data if available
-    if(r_outlen <= r_adlen) { // enough AD
-        memcpy(output + len, A + block_offset, r_outlen);
-    } else { // not enough AD, need to pad
-        if(r_adlen > 0) // ad might be nullptr
-            memcpy(output + len, A + block_offset, r_adlen);
+    if(r_outlen <= r_adlen) // enough AD
+        memcpy(output + len, A + block_pos, r_outlen);
+    else { // If ad doesn't fill the block completely, add padding
+        if(r_adlen > 0) // Check if there is any ad
+            memcpy(output + len, A + block_pos, r_adlen);
         memset(output + len + r_adlen, 0x00, r_outlen - r_adlen);
         output[len + r_adlen] = 0x01;
     }
 }
 
-// Return the ith assocated data block.
-// clen is the length of the ciphertext in bytes
-void get_block_c(BYTE* output, const BYTE* C, SIZE clen, SIZE index)
+// Grab a block of the ciphertext using the index from (ciphertext||1)
+void block_c_get(BYTE* output, const BYTE* C, SIZE clen, SIZE index)
 {
     const SIZE block_offset = index * BLOCK_SIZE;
-    // If clen is divisible by BLOCK_SIZE, add an additional padding block
+    // Add a padding block if clen % BLOCK_SIZE = 0
     if(block_offset == clen) {
         memset(output, 0x00, BLOCK_SIZE);
         output[0] = 0x01;
         return;
     }
-    const SIZE r_clen  = clen - block_offset;
-    // Fill with ciphertext if available
-    if(BLOCK_SIZE <= r_clen) { // enough ciphertext
+    // Calculate how much ciphertext is left
+    const SIZE c_left  = clen - block_offset;
+    // Fill with ciphertext if there is enough to fill the block
+    if(c_left >= BLOCK_SIZE) { // 
         memcpy(output, C + block_offset, BLOCK_SIZE);
-    } else { // not enough ciphertext, need to pad
-        if(r_clen > 0) // c might be nullptr
-            memcpy(output, C + block_offset, r_clen);
-        memset(output + r_clen, 0x00, BLOCK_SIZE - r_clen);
-        output[r_clen] = 0x01;
+    } else { // Not enough ciphertext left to fill the block
+        if(c_left > 0) // If the ciphertext is not empty
+            memcpy(output, C + block_offset, c_left);
+        // Pad a 1 with trailing zeroes till the end of the block
+        memset(output + c_left, 0x00, BLOCK_SIZE - c_left);
+        output[c_left] = 0x01;
     }
 }
 
@@ -125,7 +126,7 @@ int enc)
 
     // Create the buffer for the tag and store A1 in it
     BYTE tag_buffer[BLOCK_SIZE] = {0};
-    get_block_ad(tag_buffer, npub, A, adlen, 0);
+    block_ad_get(tag_buffer, npub, A, adlen, 0);
 
     // Use the longest n to combine all loops
     for(int i = 1; i <= longest_n; ++i)
@@ -135,13 +136,13 @@ int enc)
         if(i <= mblocks_n)
         {
             memcpy(mask_buffer, lfsr_curr, BLOCK_SIZE);
-            xor_block(mask_buffer, lfsr_next, BLOCK_SIZE);
+            block_xor(mask_buffer, lfsr_next, BLOCK_SIZE);
             memcpy(buffer, npub, CRYPTO_NPUBBYTES);
             memset(buffer+CRYPTO_NPUBBYTES, 0, BLOCK_SIZE-CRYPTO_NPUBBYTES);
-            xor_block(buffer, mask_buffer, BLOCK_SIZE);
+            block_xor(buffer, mask_buffer, BLOCK_SIZE);
             permutation(buffer);
-            xor_block(buffer, M+BLOCK_SIZE*(i-1), BLOCK_SIZE);
-            xor_block(buffer, mask_buffer, BLOCK_SIZE);
+            block_xor(buffer, M+BLOCK_SIZE*(i-1), BLOCK_SIZE);
+            block_xor(buffer, mask_buffer, BLOCK_SIZE);
 
             // The last block could be not exactly 1 block size long
             // If it is the last block copy mlen-m_index (remaining bytes, this could be block size long)
@@ -154,30 +155,30 @@ int enc)
         if(i > 1 && i <= cblocks_n+1)
         {
             memcpy(mask_buffer, lfsr_prev, BLOCK_SIZE);
-            xor_block(mask_buffer, lfsr_next, BLOCK_SIZE);
-            get_block_c(buffer, enc ? C : M, mlen, i - 2);
-            xor_block(buffer, mask_buffer, BLOCK_SIZE);
+            block_xor(mask_buffer, lfsr_next, BLOCK_SIZE);
+            block_c_get(buffer, enc ? C : M, mlen, i - 2);
+            block_xor(buffer, mask_buffer, BLOCK_SIZE);
             permutation(buffer);
-            xor_block(buffer, mask_buffer, BLOCK_SIZE);
-            xor_block(tag_buffer, buffer, BLOCK_SIZE);
+            block_xor(buffer, mask_buffer, BLOCK_SIZE);
+            block_xor(tag_buffer, buffer, BLOCK_SIZE);
         }
 
         if(i + 1 <= ablocks_n)
         {
-            get_block_ad(buffer, npub, A, adlen, i);
-            xor_block(buffer, lfsr_next, BLOCK_SIZE);
+            block_ad_get(buffer, npub, A, adlen, i);
+            block_xor(buffer, lfsr_next, BLOCK_SIZE);
             permutation(buffer);
-            xor_block(buffer, lfsr_next, BLOCK_SIZE);
-            xor_block(tag_buffer, buffer, BLOCK_SIZE);
+            block_xor(buffer, lfsr_next, BLOCK_SIZE);
+            block_xor(tag_buffer, buffer, BLOCK_SIZE);
         }
 
         memcpy(lfsr_prev, lfsr_curr, BLOCK_SIZE);
         memcpy(lfsr_curr, lfsr_next, BLOCK_SIZE);
         m_index += BLOCK_SIZE;
     }
-    xor_block(tag_buffer, expanded_key, BLOCK_SIZE);
+    block_xor(tag_buffer, expanded_key, BLOCK_SIZE);
     permutation(tag_buffer);
-    xor_block(tag_buffer, expanded_key, BLOCK_SIZE);
+    block_xor(tag_buffer, expanded_key, BLOCK_SIZE);
     memcpy(T, tag_buffer, CRYPTO_TAGBYTES);
 }
 
@@ -195,10 +196,13 @@ const BYTE* K)
     return 0;
 }
 
+// Takes tag T, cipher C, cipher length mlen, additional data A, 
+// additional data length adlen, secret nonce nsec, public nonce npub and key k.
+// Returns message M and wether or not the tag verified correctly (returns 0 if correct, -1 if incorrect).
 int delirium_decrypt(
 BYTE* M, BYTE* T,
 const BYTE* C,
-SIZE mlen,
+SIZE clen,
 const BYTE* A,
 SIZE adlen,
 const BYTE* nsec,
@@ -206,7 +210,7 @@ const BYTE* npub,
 const BYTE* K)
 {
     BYTE T2[CRYPTO_TAGBYTES];
-    delirium_aead(M, T2, C, mlen, A, adlen, nsec, npub, K, 0);
+    delirium_aead(M, T2, C, clen, A, adlen, nsec, npub, K, 0);
     return memcmp(T, T2, CRYPTO_TAGBYTES) == 0 ? 0 : -1;
 }
 
@@ -214,7 +218,7 @@ int main(int argc, char *argv[]) {
     BYTE test_message[BLOCK_SIZE*4] = "This is a test message!"; 
     SIZE test_message_length = BLOCK_SIZE*4;
     BYTE test_cipher[20];
-    BYTE test_ad[18] = "This is test data";
+    BYTE test_ad[13] = "This is test!";
     unsigned long long test_ad_length = 5;
     BYTE test_key[CRYPTO_KEYBYTES] = "Password123!";
     BYTE test_npub[CRYPTO_NPUBBYTES] = {5};
