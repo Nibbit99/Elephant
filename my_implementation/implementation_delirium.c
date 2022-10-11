@@ -7,7 +7,7 @@
 // Function for left rotation of bytes
 BYTE rotl(BYTE b)
 {
-    return (b << 1) | (b >> 7);
+    return (b << 1) | (b >> 7); // QUESTION - Usage of this statement?
 }
 
 // The LFSR step function
@@ -73,16 +73,16 @@ void block_c_get(BYTE* output, const BYTE* C, SIZE clen, SIZE index)
         return;
     }
     // Calculate how much ciphertext is left
-    const SIZE c_left  = clen - block_offset;
+    const SIZE c_remaining  = clen - block_offset;
     // Fill with ciphertext if there is enough to fill the block
-    if(c_left >= BLOCK_SIZE) { // 
+    if(c_remaining >= BLOCK_SIZE) { // 
         memcpy(output, C + block_offset, BLOCK_SIZE);
     } else { // Not enough ciphertext left to fill the block
-        if(c_left > 0) // If the ciphertext is not empty
-            memcpy(output, C + block_offset, c_left);
+        if(c_remaining > 0) // If the ciphertext is not empty
+            memcpy(output, C + block_offset, c_remaining);
         // Pad a 1 with trailing zeroes till the end of the block
-        memset(output + c_left, 0x00, BLOCK_SIZE - c_left);
-        output[c_left] = 0x01;
+        memset(output + c_remaining, 0x00, BLOCK_SIZE - c_remaining);
+        output[c_remaining] = 0x01;
     }
 }
 
@@ -112,8 +112,8 @@ int enc)
     BYTE lfsr_curr[BLOCK_SIZE] = {0};
     BYTE lfsr_next[BLOCK_SIZE] = {0};
 
-    // Buffer
-    BYTE buffer[BLOCK_SIZE];
+    // Buffer for storing the current block that's being worked on
+    BYTE block_buffer[BLOCK_SIZE];
 
     // Expanded key
     BYTE expanded_key[BLOCK_SIZE] = {0};
@@ -131,57 +131,71 @@ int enc)
     // Use the longest n to combine all loops
     for(int i = 1; i <= longest_n; ++i)
     {
+        // Calculate the next lfsr state into lfsr_next
         LFSR_step(lfsr_next, lfsr_curr);
 
+        // Line 1-3 of the pseudo-code
         if(i <= mblocks_n)
         {
             memcpy(mask_buffer, lfsr_curr, BLOCK_SIZE);
             block_xor(mask_buffer, lfsr_next, BLOCK_SIZE);
-            memcpy(buffer, npub, CRYPTO_NPUBBYTES);
-            memset(buffer+CRYPTO_NPUBBYTES, 0, BLOCK_SIZE-CRYPTO_NPUBBYTES);
-            block_xor(buffer, mask_buffer, BLOCK_SIZE);
-            permutation(buffer);
-            block_xor(buffer, M+BLOCK_SIZE*(i-1), BLOCK_SIZE);
-            block_xor(buffer, mask_buffer, BLOCK_SIZE);
+            memcpy(block_buffer, npub, CRYPTO_NPUBBYTES);
+            memset(block_buffer+CRYPTO_NPUBBYTES, 0, BLOCK_SIZE-CRYPTO_NPUBBYTES);
+            block_xor(block_buffer, mask_buffer, BLOCK_SIZE);
+            permutation(block_buffer);
+            block_xor(block_buffer, M+BLOCK_SIZE*(i-1), BLOCK_SIZE);
+            block_xor(block_buffer, mask_buffer, BLOCK_SIZE);
 
             // The last block could be not exactly 1 block size long
             // If it is the last block copy mlen-m_index (remaining bytes, this could be block size long)
             if(i == mblocks_n)
-                memcpy(C+m_index, buffer, mlen-m_index);
+                memcpy(C+m_index, block_buffer, mlen-m_index);
             else
-                memcpy(C+m_index, buffer, BLOCK_SIZE);
+                memcpy(C+m_index, block_buffer, BLOCK_SIZE);
         }
 
-        if(i > 1 && i <= cblocks_n+1)
-        {
-            memcpy(mask_buffer, lfsr_prev, BLOCK_SIZE);
-            block_xor(mask_buffer, lfsr_next, BLOCK_SIZE);
-            block_c_get(buffer, enc ? C : M, mlen, i - 2);
-            block_xor(buffer, mask_buffer, BLOCK_SIZE);
-            permutation(buffer);
-            block_xor(buffer, mask_buffer, BLOCK_SIZE);
-            block_xor(tag_buffer, buffer, BLOCK_SIZE);
-        }
-
+        // Lines 8-9 of the pseudo-code
+        // XOR every BLOCK_SIZE segment of the additional data with a mask, calculating the permutation, XOR with the same mask again and then XOR into the tag
         if(i + 1 <= ablocks_n)
         {
-            block_ad_get(buffer, npub, A, adlen, i);
-            block_xor(buffer, lfsr_next, BLOCK_SIZE);
-            permutation(buffer);
-            block_xor(buffer, lfsr_next, BLOCK_SIZE);
-            block_xor(tag_buffer, buffer, BLOCK_SIZE);
+            // Line 5 of the pseudo-code
+            block_ad_get(block_buffer, npub, A, adlen, i);
+
+            block_xor(block_buffer, lfsr_next, BLOCK_SIZE);
+            permutation(block_buffer);
+            block_xor(block_buffer, lfsr_next, BLOCK_SIZE);
+            block_xor(tag_buffer, block_buffer, BLOCK_SIZE);
+        }
+
+        // Lines 10-11 of the pseudo-code
+        // XOR every BLOCK_SIZE segment of the ciphertext with a mask, calculating the permutation, XOR with the same mask again and then XOR into the tag
+        if(i > 1 && i <= cblocks_n+1)
+        {
+            // Line 6 of the pseudo-code
+            memcpy(mask_buffer, lfsr_prev, BLOCK_SIZE);
+
+            block_xor(mask_buffer, lfsr_next, BLOCK_SIZE);
+            block_c_get(block_buffer, enc ? C : M, mlen, i - 2);
+            block_xor(block_buffer, mask_buffer, BLOCK_SIZE);
+            permutation(block_buffer);
+            block_xor(block_buffer, mask_buffer, BLOCK_SIZE);
+            block_xor(tag_buffer, block_buffer, BLOCK_SIZE);
         }
 
         memcpy(lfsr_prev, lfsr_curr, BLOCK_SIZE);
         memcpy(lfsr_curr, lfsr_next, BLOCK_SIZE);
         m_index += BLOCK_SIZE;
     }
+
     block_xor(tag_buffer, expanded_key, BLOCK_SIZE);
     permutation(tag_buffer);
     block_xor(tag_buffer, expanded_key, BLOCK_SIZE);
     memcpy(T, tag_buffer, CRYPTO_TAGBYTES);
 }
 
+// Takes message M, message length mlen, additional data A,
+// additional data length adlen, secret nonce nsec, public nonce npub and key k
+// Returns ciphertext C and tag T
 int delirium_encrypt(
 BYTE* C, BYTE* T,
 const BYTE* M,
@@ -196,9 +210,9 @@ const BYTE* K)
     return 0;
 }
 
-// Takes tag T, cipher C, cipher length mlen, additional data A, 
-// additional data length adlen, secret nonce nsec, public nonce npub and key k.
-// Returns message M and wether or not the tag verified correctly (returns 0 if correct, -1 if incorrect).
+// Takes tag T, cipher C, cipher length clen, additional data A, 
+// additional data length adlen, secret nonce nsec, public nonce npub and key k
+// Returns message M and wether or not the tag verified correctly (returns 0 if correct, -1 if incorrect)
 int delirium_decrypt(
 BYTE* M, BYTE* T,
 const BYTE* C,
@@ -211,6 +225,7 @@ const BYTE* K)
 {
     BYTE T2[CRYPTO_TAGBYTES];
     delirium_aead(M, T2, C, clen, A, adlen, nsec, npub, K, 0);
+    // Compare the given tag T with the calculated tag T2. If T == T2 return 0 (SUCCESS), otherwise return -1 (FAIL)
     return memcmp(T, T2, CRYPTO_TAGBYTES) == 0 ? 0 : -1;
 }
 
