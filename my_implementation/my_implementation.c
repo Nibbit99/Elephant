@@ -1,13 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include "my_implementation.h"
 #include "keccak.c"
 
 // Function for left rotation of bytes
 BYTE rotl(BYTE b)
 {
-    return (b << 1) | (b >> 7); // QUESTION - Usage of this statement?
+    return (b << 1) | (b >> 7); // QUESTION - Specification says something else?
 }
 
 // The LFSR step function
@@ -31,58 +30,62 @@ void block_xor(BYTE* output, const BYTE* input, SIZE size)
         output[i] ^= input[i];
 }
 
-// Grab a block of ad using the index from (nonce||ad||1)
-void block_ad_get(BYTE* output, BYTE* npub, BYTE* A, SIZE adlen, SIZE index)
+// Function for padding with a 1 followed by trailing zeroes
+void block_pad(BYTE* output, SIZE position, SIZE size)
 {
-    SIZE len = 0;
+    memset(output + position, 0x00, size);
+    output[position] = 0x01;
+}
+
+// Grab a block of ad, using the index, from (nonce||ad||1)
+void block_ad_get(BYTE* output, const BYTE* npub, const BYTE* A, SIZE adlen, SIZE index)
+{
+    SIZE length_with_nonce = 0;
     // Block with index = 0 will contains nonce|ad
     if(index == 0) {
         memcpy(output, npub, CRYPTO_NPUBBYTES);
-        len += CRYPTO_NPUBBYTES;
+        length_with_nonce += CRYPTO_NPUBBYTES;
     }
 
     const SIZE block_pos = index * BLOCK_SIZE - (index != 0) * CRYPTO_NPUBBYTES;
-    // Add a padding block if adlen can be divided by BLOCK_SIZE
+    // Add a padding block if adlen % BLOCK_SIZE = 0
     if(index != 0 && block_pos == adlen) {
         memset(output, 0x00, BLOCK_SIZE);
         output[0] = 0x01;
         return;
     }
 
-    const SIZE r_outlen = BLOCK_SIZE - len;
-    const SIZE r_adlen  = adlen - block_pos;
-    // Fill with associated data if available
-    if(r_outlen <= r_adlen) // enough AD
-        memcpy(output + len, A + block_pos, r_outlen);
-    else { // If ad doesn't fill the block completely, add padding
-        if(r_adlen > 0) // Check if there is any ad
-            memcpy(output + len, A + block_pos, r_adlen);
-        memset(output + len + r_adlen, 0x00, r_outlen - r_adlen);
-        output[len + r_adlen] = 0x01;
+    const SIZE space_remaining = BLOCK_SIZE - length_with_nonce;
+    const SIZE adlen_remaining  = adlen - block_pos;
+    if(space_remaining <= adlen_remaining) // Enough AD to fill the block
+        memcpy(output + length_with_nonce, A + block_pos, space_remaining);
+    else { // If AD doesn't fill the block completely, add padding
+        if(adlen_remaining > 0) // If the AD is not empty
+            memcpy(output + length_with_nonce, A + block_pos, adlen_remaining);
+        // Pad a 1 with trailing zeroes till the end of the block
+        block_pad(output, length_with_nonce + adlen_remaining, space_remaining - adlen_remaining);
     }
 }
 
-// Grab a block of the ciphertext using the index from (ciphertext||1)
+// Grab a block of the ciphertext, using the index, from (ciphertext||1)
 void block_c_get(BYTE* output, const BYTE* C, SIZE clen, SIZE index)
 {
-    const SIZE block_offset = index * BLOCK_SIZE;
+    const SIZE block_pos = index * BLOCK_SIZE;
     // Add a padding block if clen % BLOCK_SIZE = 0
-    if(block_offset == clen) {
+    if(block_pos == clen) {
         memset(output, 0x00, BLOCK_SIZE);
         output[0] = 0x01;
         return;
     }
     // Calculate how much ciphertext is left
-    const SIZE c_remaining  = clen - block_offset;
-    // Fill with ciphertext if there is enough to fill the block
-    if(c_remaining >= BLOCK_SIZE) { // 
-        memcpy(output, C + block_offset, BLOCK_SIZE);
+    const SIZE c_remaining  = clen - block_pos;
+    if(c_remaining >= BLOCK_SIZE) { // Enough ciphertext to fill the block
+        memcpy(output, C + block_pos, BLOCK_SIZE);
     } else { // Not enough ciphertext left to fill the block
         if(c_remaining > 0) // If the ciphertext is not empty
-            memcpy(output, C + block_offset, c_remaining);
+            memcpy(output, C + block_pos, c_remaining);
         // Pad a 1 with trailing zeroes till the end of the block
-        memset(output + c_remaining, 0x00, BLOCK_SIZE - c_remaining);
-        output[c_remaining] = 0x01;
+        block_pad(output, c_remaining, BLOCK_SIZE - c_remaining);
     }
 }
 
@@ -147,7 +150,7 @@ int enc)
             block_xor(block_buffer, mask_buffer, BLOCK_SIZE);
 
             // The last block could be not exactly 1 block size long
-            // If it is the last block copy mlen-m_index (remaining bytes, this could be block size long)
+            // If it is the last block, copy mlen-m_index (remaining bytes, this could be block size long)
             if(i == mblocks_n)
                 memcpy(C+m_index, block_buffer, mlen-m_index);
             else
@@ -182,6 +185,7 @@ int enc)
             block_xor(tag_buffer, block_buffer, BLOCK_SIZE);
         }
 
+        // Move the lfsr states backwards
         memcpy(lfsr_prev, lfsr_curr, BLOCK_SIZE);
         memcpy(lfsr_curr, lfsr_next, BLOCK_SIZE);
         m_index += BLOCK_SIZE;
@@ -227,27 +231,4 @@ const BYTE* K)
     delirium_aead(M, T2, C, clen, A, adlen, nsec, npub, K, 0);
     // Compare the given tag T with the calculated tag T2. If T == T2 return 0 (SUCCESS), otherwise return -1 (FAIL)
     return memcmp(T, T2, CRYPTO_TAGBYTES) == 0 ? 0 : -1;
-}
-
-int main(int argc, char *argv[]) {
-    BYTE test_message[BLOCK_SIZE*4] = "This is a test message!"; 
-    SIZE test_message_length = BLOCK_SIZE*4;
-    BYTE test_cipher[20];
-    BYTE test_ad[13] = "This is test!";
-    unsigned long long test_ad_length = 5;
-    BYTE test_key[CRYPTO_KEYBYTES] = "Password123!";
-    BYTE test_npub[CRYPTO_NPUBBYTES] = {5};
-    BYTE test_nsec[CRYPTO_NPUBBYTES] = {1};
-    BYTE test_tag[CRYPTO_TAGBYTES] = {0};
-
-    delirium_encrypt(test_cipher, test_tag, test_message, test_message_length, test_ad, test_ad_length, test_nsec, test_npub, test_key);
-
-    printf("\n----ENCRYPTION----\nCipher:\n%s\nTag:\n%s\n------------------", test_cipher, test_tag);
-
-    BYTE test_message2[BLOCK_SIZE*8] = {0};
-
-    if(delirium_decrypt(test_message2, test_tag, test_cipher, test_message_length, test_ad, test_ad_length, test_nsec, test_npub, test_key) == 0)
-        printf("\n----DECRYPTION----\nMessage:\n%s\n------------------", test_message2);
-    else
-        printf("\n----DECRYPTION----\nFAILED\n------------------", test_message2);
 }
