@@ -7,7 +7,7 @@ int main(int argc, char *argv[]) {
     BYTE test_cipher[20];
     BYTE test_ad[13] = "This is test!";
     unsigned long long test_ad_length = 5;
-    BYTE test_key[CRYPTO_KEYBYTES] = "Password123!";
+    BYTE test_key[CRYPTO_KEYBYTES] = "Password23!";
     BYTE test_npub[CRYPTO_NPUBBYTES] = {5};
     BYTE test_nsec[CRYPTO_NPUBBYTES] = {1};
     BYTE test_tag[CRYPTO_TAGBYTES] = {0};
