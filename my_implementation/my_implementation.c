@@ -129,6 +129,7 @@ int enc)
 
     // Create the buffer for the tag and store A1 in it
     BYTE tag_buffer[BLOCK_SIZE] = {0};
+
     block_ad_get(tag_buffer, npub, A, adlen, 0);
 
     // Use the longest n to combine all loops

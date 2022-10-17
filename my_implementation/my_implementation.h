@@ -7,6 +7,9 @@
 // t = 128 bits
 #define CRYPTO_TAGBYTES 16
 
+// For tests, the max size is 32 bytes
+#define TEST_MAX_SIZE 32
+
 #define CRYPTO_NSECBYTES 0
 #define CRYPTO_NPUBBYTES 12
 
