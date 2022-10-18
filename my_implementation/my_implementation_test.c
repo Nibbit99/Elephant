@@ -1,5 +1,6 @@
 #include "my_implementation.h"
 #include "my_implementation.c"
+#include <time.h>
 
 #define MAX_LINE_LENGTH 128
 
@@ -22,6 +23,11 @@ void getData(BYTE* output, BYTE* line, int *length, FILE* fp)
     *length = (strlen(line) - strcspn(line, "="))/2 - 1;
 }
 
+void writeData(FILE* fpo, int i, SIZE mlen, SIZE adlen, double time)
+{
+  fprintf(fpo, "%i\t\t│\t%i\t\t│\t%i\t\t│\t%f\n", i, mlen, adlen, time*1000000);
+}
+
 void printHex(BYTE* text, SIZE length)
 {
     for (int i = 0; i < length; i++) {
@@ -29,9 +35,22 @@ void printHex(BYTE* text, SIZE length)
     }
 }
 
-int main(int argc, char *argv[]) {
-    // Initialize everything needed for the tests
-    int test_count = 20;
+void runTests(int test_count, BYTE* output_file)
+{
+    // Initialize everything needed for measuring time
+    clock_t begin, end;
+    double current_time = 0;
+    double total_time = 0;
+
+    // Initialize everything needed for writing a file
+    FILE * fpo;
+
+    fpo = fopen(output_file, "w");
+    if(fpo == NULL)
+      exit(EXIT_FAILURE);
+
+    fprintf(fpo, "TEST:\t│\tMLEN:\t│\tADLEN:\t│\tAVG TIME (micro):\n");
+    fprintf(fpo, "──────────────────────────────────────────────────────────────\n");
 
     // Initialize everything needed for reading the file
     FILE * fp;
@@ -55,11 +74,11 @@ int main(int argc, char *argv[]) {
     BYTE test_ct[TEST_MAX_SIZE + CRYPTO_TAGBYTES];
 
     // Read lines and encrypt
-    int count = 1089;
-    
+    int test_repeat = 1000;
+    int test_errors = 0;
     int line_length;
 
-    for(int i = 1; i <= count; i++)
+    for(int i = 1; i <= test_count; i++)
     {
       fgets(line, sizeof(line), fp);
       getData(test_key, line, &line_length, fp);
@@ -70,15 +89,39 @@ int main(int argc, char *argv[]) {
       test_adlen = line_length;
       getData(test_message2, line, &line_length, fp);
 
-      delirium_encrypt(test_cipher, test_tag, test_message1, test_mlen, test_ad, test_adlen, NULL, test_npub, test_key);
+      begin = clock();
+      for(int j = 0; j < test_repeat; j++)
+        delirium_encrypt(test_cipher, test_tag, test_message1, test_mlen, test_ad, test_adlen, NULL, test_npub, test_key);
+      end = clock();
 
       memcpy(test_ct, test_cipher, TEST_MAX_SIZE);
       memcpy(test_ct + test_mlen, test_tag, CRYPTO_TAGBYTES);
 
-      printf(memcmp(test_message2, test_ct, test_mlen + CRYPTO_TAGBYTES) == 0 ? "%i: CORRECT\n" : "%i: INCORRECT\n", i);
+      if(memcmp(test_message2, test_ct, test_mlen + CRYPTO_TAGBYTES) == 0)
+        printf("%i: CORRECT\n", i);
+      else
+      {
+        printf("%i: INCORRECT\n", i);
+        test_errors++;
+      }
+
+      current_time = ((double) end - (double) begin) / CLOCKS_PER_SEC / test_repeat;
+      writeData(fpo, i, test_mlen, test_adlen, current_time);
+      total_time += current_time;
 
       fgets(line, sizeof(line), fp);
     }
 
     fclose(fp);
+    printf("------------------------------\n%i CORRECT, %i INCORRECT\n", test_count-test_errors, test_errors);
+    printf("AVG TIME PER ENCRYPTION:\n %f MICROSECONDS\n", total_time/test_count*1000000);
+    fprintf(fpo, "──────────────────────────────────────────────────────────────\n\n");
+    fprintf(fpo, "\tAVG TIME PER ENCRYPTION:\n\t%f MICROSECONDS\n\n", total_time/test_count*1000000);
+    fprintf(fpo, "\t%i/%i CORRECT\n", test_count-test_errors, test_count);
+    fclose(fpo);
+}
+
+int main(int argc, char *argv[]) {
+  runTests(1089, "TEST_RESULTS.txt");
+  return 0;
 }

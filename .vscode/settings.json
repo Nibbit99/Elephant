@@ -4,7 +4,9 @@
         "elephant_200.h": "c",
         "stdio.h": "c",
         "string.h": "c",
-        "api.h": "c"
+        "api.h": "c",
+        "chrono": "c",
+        "ctime": "c"
     },
     "code-runner.runInTerminal": true
 }
