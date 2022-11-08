@@ -22,8 +22,6 @@ typedef unsigned long long SIZE;
 
 void permutation(BYTE* state);
 
-void LFSR_step(BYTE* output, BYTE* input);
-
 void block_xor(BYTE* output, const BYTE* input, SIZE size);
 
 void block_pad(BYTE* output, SIZE position, SIZE size);

@@ -2,20 +2,20 @@
 #include <stdlib.h>
 #include "my_implementation.h"
 #include "keccak.c"
-// New library for int32_t
+// New library for uint32_t
 #include <stdint.h>
 
 // Function for left rotation of bytes
-BYTE rotl(BYTE b)
+uint8_t rotl(uint8_t a)
 {
-    return (b << 1) | (b >> 7); // QUESTION - Specification says something else?
+    return (a<<1) | ((a>>7) & 0X01010101);
 }
 
 // The LFSR step function
-void LFSR_step(BYTE* output, BYTE* input)
+void LFSR_step(uint8_t* output, uint8_t* input)
 {
     // Calculating the new last byte and storing it in temp
-    BYTE temp = rotl(input[0]) ^ rotl(input[2]) ^ (input[13] << 1);
+    uint8_t temp = rotl(input[0]) ^ rotl(input[2]) ^ ((input[13] << 1) & 0XFEFEFEFE);
 
     // Move the rest of the bytes left
     for(SIZE i = 1; i <= BLOCK_SIZE - 1; i++)
@@ -32,9 +32,8 @@ void block_pad(BYTE* output, SIZE position, SIZE size)
     output[position] = 0x01;
 }
 
-
 // Function for XOR on two ints of 32 bits each
-int32_t xor_int(int32_t *A_int, int32_t *B_int, int len)
+uint32_t xor_int(uint32_t *A_int, uint32_t *B_int, int len)
 {
     // For each of the ints XOR them
     for(int i = 0; i < len; i++)
@@ -113,18 +112,18 @@ int enc)
     const SIZE longest_n = (cblocks_n + 1 > ablocks_n - 1) ? cblocks_n + 1 : ablocks_n - 1;
 
     // Masks
-    int32_t mask_buffer[IBLOCK_SIZE] = {0};
+    uint32_t mask_buffer[IBLOCK_SIZE] = {0};
 
     // LFSR states (previous state, current state, next state)
-    BYTE lfsr_prev[BLOCK_SIZE] = {0};
-    BYTE lfsr_curr[BLOCK_SIZE] = {0};
-    BYTE lfsr_next[BLOCK_SIZE] = {0};
+    uint32_t lfsr_prev[BLOCK_SIZE] = {0};
+    uint32_t lfsr_curr[BLOCK_SIZE] = {0};
+    uint32_t lfsr_next[BLOCK_SIZE] = {0};
 
     // Buffer for storing the current block that's being worked on
-    int32_t block_buffer[IBLOCK_SIZE];
+    uint32_t block_buffer[IBLOCK_SIZE];
 
     // Expanded key
-    int32_t expanded_key[IBLOCK_SIZE] = {0};
+    uint32_t expanded_key[IBLOCK_SIZE] = {0};
     memcpy(expanded_key, K, CRYPTO_KEYBYTES);
     permutation((BYTE * ) expanded_key);
     memcpy(lfsr_curr, expanded_key, BLOCK_SIZE);
@@ -133,7 +132,7 @@ int enc)
     SIZE m_index = 0;
 
     // Create the buffer for the tag and store A1 in it
-    int32_t tag_buffer[IBLOCK_SIZE] = {0};
+    uint32_t tag_buffer[IBLOCK_SIZE] = {0};
 
     block_ad_get((BYTE *) tag_buffer, npub, A, adlen, 0);
 
@@ -141,20 +140,20 @@ int enc)
     for(int i = 1; i <= longest_n; ++i)
     {
         // Calculate the next lfsr state into lfsr_next
-        LFSR_step(lfsr_next, lfsr_curr);
+        LFSR_step((uint8_t *) lfsr_next, (uint8_t *) lfsr_curr);
 
         // Line 1-3 of the pseudo-code
         if(i <= mblocks_n)
         {
             memcpy(mask_buffer, lfsr_curr, BLOCK_SIZE);
-            xor_int(mask_buffer, (int32_t *) lfsr_next, IBLOCK_SIZE);
+            xor_int(mask_buffer, lfsr_next, IBLOCK_SIZE);
 
             memcpy(block_buffer, npub, CRYPTO_NPUBBYTES);
             memset(block_buffer+ICRYPTO_NPUBBYTES, 0, IBLOCK_SIZE-ICRYPTO_NPUBBYTES);
 
             xor_int(block_buffer, mask_buffer, IBLOCK_SIZE);
             permutation((BYTE *) block_buffer);
-            xor_int(block_buffer, (int32_t *) M+BLOCK_SIZE*(i-1), IBLOCK_SIZE);
+            xor_int(block_buffer, (uint32_t *) M+BLOCK_SIZE*(i-1), IBLOCK_SIZE);
             xor_int(block_buffer, mask_buffer, IBLOCK_SIZE);
 
 
@@ -173,9 +172,9 @@ int enc)
             // Line 5 of the pseudo-code
             block_ad_get((BYTE *) block_buffer, npub, A, adlen, i);
 
-            xor_int(block_buffer, (int32_t *) lfsr_next, IBLOCK_SIZE);
+            xor_int(block_buffer, lfsr_next, IBLOCK_SIZE);
             permutation((BYTE *) block_buffer);
-            xor_int(block_buffer, (int32_t *) lfsr_next, IBLOCK_SIZE);
+            xor_int(block_buffer, lfsr_next, IBLOCK_SIZE);
             xor_int(tag_buffer, block_buffer, IBLOCK_SIZE);
         }
 
@@ -186,7 +185,7 @@ int enc)
             // Line 6 of the pseudo-code
             memcpy(mask_buffer, lfsr_prev, BLOCK_SIZE);
 
-            xor_int(mask_buffer, (int32_t *) lfsr_next, IBLOCK_SIZE);
+            xor_int(mask_buffer, lfsr_next, IBLOCK_SIZE);
             block_c_get((BYTE *) block_buffer, enc ? C : M, mlen, i - 2);
             xor_int(block_buffer, mask_buffer, IBLOCK_SIZE);
             permutation((BYTE *) block_buffer);
@@ -200,9 +199,9 @@ int enc)
         m_index += BLOCK_SIZE;
     }
 
-    xor_int(tag_buffer, (int32_t *) expanded_key, IBLOCK_SIZE);
+    xor_int(tag_buffer, (uint32_t *) expanded_key, IBLOCK_SIZE);
     permutation((BYTE *) tag_buffer);
-    xor_int(tag_buffer, (int32_t *) expanded_key, IBLOCK_SIZE);
+    xor_int(tag_buffer, (uint32_t *) expanded_key, IBLOCK_SIZE);
     memcpy(T, tag_buffer, CRYPTO_TAGBYTES);
 }
 

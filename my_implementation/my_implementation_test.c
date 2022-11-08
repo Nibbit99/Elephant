@@ -1,5 +1,5 @@
 #include "my_implementation.h"
-#include "my_implementation.c"
+#include "my_implementation_a.c"
 #include <time.h>
 
 // Maximum line length of the input file
