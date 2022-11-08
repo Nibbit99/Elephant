@@ -3,7 +3,7 @@
 #include <time.h>
 
 // Maximum line length of the input file
-#define MAX_LINE_LENGTH 128
+#define MAX_LINE_LENGTH 232
 
 // Reads from a HEX char array to a BYTE array
 void fromHex(BYTE *output, const BYTE *input) {
@@ -43,6 +43,7 @@ void printHex(BYTE* text, SIZE length)
     }
 }
 
+#pragma region File Test
 // Runs test_count tests from input_file and writes the test results to output_file
 void runTests(int test_count, int test_repeat, BYTE* input_file, BYTE* output_file)
 {
@@ -88,7 +89,6 @@ void runTests(int test_count, int test_repeat, BYTE* input_file, BYTE* output_fi
     BYTE test_ct[TEST_MAX_SIZE + CRYPTO_TAGBYTES];
 
     // Read lines and encrypt
-    // test_repeat is used as the amount of times an encryption is repeated for an average result
     // test_errors keeps track of all the incorrect encryptions
     // line_length keeps track of the length of the current line that is being read
     int test_errors = 0;
@@ -150,7 +150,9 @@ void runTests(int test_count, int test_repeat, BYTE* input_file, BYTE* output_fi
     fprintf(fpo, "\t%i/%i CORRECT\n", test_count-test_errors, test_count);
     fclose(fpo);
 }
+#pragma endregion
 
+#pragma region Variance Test
 // Form an average from encryting test_repeat times, and then do this test_amount times
 void varianceTest(int test_amount, int test_repeat, BYTE* input_file, BYTE* output_file)
 {
@@ -191,10 +193,7 @@ void varianceTest(int test_amount, int test_repeat, BYTE* input_file, BYTE* outp
     BYTE test_ct[TEST_MAX_SIZE + CRYPTO_TAGBYTES];
 
     // Read lines and encrypt
-    // test_repeat is used as the amount of times an encryption is repeated for an average result
-    // test_errors keeps track of all the incorrect encryptions
     // line_length keeps track of the length of the current line that is being read
-    int test_errors = 0;
     int line_length;
 
     // Fill in all the buffers with the correct test data
@@ -222,8 +221,7 @@ void varianceTest(int test_amount, int test_repeat, BYTE* input_file, BYTE* outp
         delirium_encrypt(test_cipher, test_tag, test_message1, test_mlen, test_ad, test_adlen, NULL, test_npub, test_key);
       end = clock();
 
-      // Add the time to the total time, this is used to calculate the
-      // average time per encryption over the whole test set
+      // Calculate the timer per byte for the current test and write it to the output file
       total_time_byte = ((double) end - (double) begin) * 1000 / CLOCKS_PER_SEC / test_repeat * 1000/(test_mlen+test_adlen);
       printf("%f\n", total_time_byte);
       fprintf(fpo, "%i\t\t%f\n", test_repeat, total_time_byte);
@@ -233,19 +231,185 @@ void varianceTest(int test_amount, int test_repeat, BYTE* input_file, BYTE* outp
     fgets(line, sizeof(line), fp);
     fclose(fp);
 
-    // Print additional information such as the average time per encryptionn in microseconds
-    // and the amount of correct encryptions out of all the encryptions
+    // Print finish statement
     fprintf(fpo, "──────────────────────────────────────────\n");
     printf("FINISHED VARIANCE TEST FOR REPETITION: %i\n", test_repeat);
     fclose(fpo);
 }
+#pragma endregion
+
+#define TEST_MAX_SIZE_LARGE 100
+
+#pragma region Fixed MLEN Test
+// Form an average from encryting test_repeat times, and then do this test_amount times
+void fixedMLENTest(int test_repeat, BYTE* input_file, BYTE* output_file)
+{
+    // Initialize everything needed for measuring time
+    clock_t begin, end;
+    double current_time = 0;
+    double total_time_byte = 0;
+
+    // Initialize everything needed for writing a file
+    FILE * fpo;
+
+    // Open the output file
+    fpo = fopen(output_file, "w");
+    if(fpo == NULL)
+      exit(EXIT_FAILURE);
+
+    // Initialize everything needed for reading the file
+    FILE * fp;
+    BYTE line[MAX_LINE_LENGTH];
+
+    // Open the input file
+    fp = fopen(input_file, "r");
+    if(fp == NULL)
+      exit(EXIT_FAILURE);
+
+    // Initialize everything needed for the encryption
+    // Creating buffers for each of the test variables
+    BYTE test_key[CRYPTO_KEYBYTES + 1];
+    BYTE test_npub[CRYPTO_NPUBBYTES + 1];
+    BYTE test_fixed_message[TEST_MAX_SIZE + 1];
+    BYTE test_ad[TEST_MAX_SIZE_LARGE + 1];
+    BYTE test_cipher[TEST_MAX_SIZE + CRYPTO_TAGBYTES + 1];
+    BYTE test_tag[CRYPTO_TAGBYTES];
+    SIZE test_mlen = TEST_MAX_SIZE;
+    SIZE test_clen = TEST_MAX_SIZE;
+    SIZE test_adlen = TEST_MAX_SIZE;
+    BYTE test_ct[TEST_MAX_SIZE + CRYPTO_TAGBYTES];
+
+    // Read lines and encrypt
+    // line_length keeps track of the length of the current line that is being read
+    int line_length;
+
+    // Header for the output file
+    fprintf(fpo, "MLEN: %i, REPETITION: %i\n", test_mlen, test_repeat);
+    fprintf(fpo, "──────────────────────────────────────────\n");
+    fprintf(fpo, "ADLEN:\t│\tTIME PER BYTE\n");
+    fprintf(fpo, "──────────────────────────────────────────\n");
+
+    // Fill in all the buffers with the correct test data
+    getData(test_key, line, &line_length, fp);
+    getData(test_npub, line, &line_length, fp);
+    getData(test_fixed_message, line, &line_length, fp);
+    test_mlen = line_length;
+    getData(test_ad, line, &line_length, fp);
+    test_adlen = line_length;
+
+    // Remove blank line
+    fgets(line, sizeof(line), fp);
+
+    for(int i = 0; i < test_adlen; i++)
+    {
+      // Keep track of the clock cycle time of test_repeat repetitions of encryption
+      begin = clock();
+      // Repeat test_repeat times for an accurate and average time
+      for(int j = 0; j < test_repeat; j++)
+        delirium_encrypt(test_cipher, test_tag, test_fixed_message, test_mlen, test_ad, i, NULL, test_npub, test_key);
+      end = clock();
+
+      // Calculate the timer per byte for the current test and write it to the output file
+      total_time_byte = ((double) end - (double) begin) * 1000 / CLOCKS_PER_SEC / test_repeat * 1000/(test_mlen+test_adlen);
+      printf("%i: \t %f\n", i, total_time_byte);
+      fprintf(fpo, "%i\t\t%f\n", i, total_time_byte);
+    }
+
+    fclose(fp);
+
+    // Print finish statement
+    fprintf(fpo, "──────────────────────────────────────────\n");
+    printf("FINISHED TEST FOR MLEN: %i\n", test_mlen);
+    fclose(fpo);
+}
+#pragma endregion
+
+#pragma region Fixed ADLEN Test
+// Form an average from encryting test_repeat times, and then do this test_amount times
+void fixedADLENTest(int test_repeat, BYTE* input_file, BYTE* output_file)
+{
+    // Initialize everything needed for measuring time
+    clock_t begin, end;
+    double current_time = 0;
+    double total_time_byte = 0;
+
+    // Initialize everything needed for writing a file
+    FILE * fpo;
+
+    // Open the output file
+    fpo = fopen(output_file, "w");
+    if(fpo == NULL)
+      exit(EXIT_FAILURE);
+
+    // Initialize everything needed for reading the file
+    FILE * fp;
+    BYTE line[MAX_LINE_LENGTH];
+
+    // Open the input file
+    fp = fopen(input_file, "r");
+    if(fp == NULL)
+      exit(EXIT_FAILURE);
+
+    // Initialize everything needed for the encryption
+    // Creating buffers for each of the test variables
+    BYTE test_key[CRYPTO_KEYBYTES + 1];
+    BYTE test_npub[CRYPTO_NPUBBYTES + 1];
+    BYTE test_message[TEST_MAX_SIZE_LARGE + 1];
+    BYTE test_fixed_ad[TEST_MAX_SIZE + 1];
+    BYTE test_cipher[TEST_MAX_SIZE + CRYPTO_TAGBYTES + 1];
+    BYTE test_tag[CRYPTO_TAGBYTES];
+    SIZE test_mlen = TEST_MAX_SIZE;
+    SIZE test_clen = TEST_MAX_SIZE;
+    SIZE test_adlen = TEST_MAX_SIZE;
+    BYTE test_ct[TEST_MAX_SIZE + CRYPTO_TAGBYTES];
+
+    // Read lines and encrypt
+    // line_length keeps track of the length of the current line that is being read
+    int line_length;
+
+    // Header for the output file
+    fprintf(fpo, "ADLEN: %i, REPETITION: %i\n", test_adlen, test_repeat);
+    fprintf(fpo, "──────────────────────────────────────────\n");
+    fprintf(fpo, "MLEN:\t│\tTIME PER BYTE\n");
+    fprintf(fpo, "──────────────────────────────────────────\n");
+
+    // Fill in all the buffers with the correct test data
+    getData(test_key, line, &line_length, fp);
+    getData(test_npub, line, &line_length, fp);
+    getData(test_fixed_ad, line, &line_length, fp);
+    test_adlen = line_length;
+    getData(test_message, line, &line_length, fp);
+    test_mlen = line_length;
+
+    // Remove blank line
+    fgets(line, sizeof(line), fp);
+
+    for(int i = 0; i < test_mlen; i++)
+    {
+      // Keep track of the clock cycle time of test_repeat repetitions of encryption
+      begin = clock();
+      // Repeat test_repeat times for an accurate and average time
+      for(int j = 0; j < test_repeat; j++)
+        delirium_encrypt(test_cipher, test_tag, test_message, i, test_fixed_ad, test_adlen, NULL, test_npub, test_key);
+      end = clock();
+
+      // Calculate the timer per byte for the current test and write it to the output file
+      total_time_byte = ((double) end - (double) begin) * 1000 / CLOCKS_PER_SEC / test_repeat * 1000/(test_mlen+test_adlen);
+      printf("%i: \t %f\n", i, total_time_byte);
+      fprintf(fpo, "%i\t\t%f\n", i, total_time_byte);
+    }
+
+    fclose(fp);
+
+    // Print finish statement
+    fprintf(fpo, "──────────────────────────────────────────\n");
+    printf("FINISHED TEST FOR ADLEN: %i\n", test_adlen);
+    fclose(fpo);
+}
+#pragma endregion
 
 int main(int argc, char *argv[]) {
-  varianceTest(20, 10, "test_data/VAR_TEST.txt", "test_results/VAR_RESULT10.txt");
-  varianceTest(20, 100, "test_data/VAR_TEST.txt", "test_results/VAR_RESULT100.txt");
-  varianceTest(20, 1000, "test_data/VAR_TEST.txt", "test_results/VAR_RESULT1000.txt");
-  varianceTest(20, 10000, "test_data/VAR_TEST.txt", "test_results/VAR_RESULT10000.txt");
-  varianceTest(20, 100000, "test_data/VAR_TEST.txt", "test_results/VAR_RESULT100000.txt");
+  runTests(20, 10000, "test_data/LWC_AEAD_KAT_128_96.txt", "test_results/INTTEST2.txt");
   return 0;
 }
 

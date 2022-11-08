@@ -13,6 +13,10 @@
 #define CRYPTO_NSECBYTES 0
 #define CRYPTO_NPUBBYTES 12
 
+// OPTIMIZATION 1: IBLOCK_SIZE should be ceil(BLOCK_SIZE/4)
+#define IBLOCK_SIZE 7
+#define ICRYPTO_NPUBBYTES 3
+
 typedef unsigned char BYTE;
 typedef unsigned long long SIZE;
 
