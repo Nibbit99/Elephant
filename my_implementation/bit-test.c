@@ -52,20 +52,3 @@ void from_int_to_byte(BYTE *output, int32_t *input)
     }
     output[24] = input[7];
 }
-
-int main(int argc, char *argv[]) {
-
-    BYTE A[25] = "GAWDDAMNGAWDDAMNYAAAGGAA";
-    int32_t C[7] = {0};
-    BYTE D[25] = "";
-    
-    memcpy(C, A, 25);
-    
-    printf("1: %i\n", C);
-
-    memcpy(D, C, 25);
-
-    printf("2: %s\n", D);
-
-    return 0;
-}
