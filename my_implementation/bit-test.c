@@ -41,7 +41,7 @@ void LFSR_in_Int(int32_t* Output, int32_t* Input)
     temp[3] = irotl(select[3]) ^ irotl(select[5]) ^ ((select[16] << 1) & 0XFEFEFEFE);
 
     // one for_loop to shift the content
-    memcpy(Output, Input+1, 24);
+    memcpy(Output, Input+1, 21);
     int8_t new_segment[8] = {select[25], temp[0], temp[1], temp[2], temp[3]};
     memcpy(Output+5, new_segment, 8);
 }
