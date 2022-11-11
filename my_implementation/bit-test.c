@@ -41,11 +41,9 @@ void LFSR_in_Int(int32_t* Output, int32_t* Input)
     temp[3] = irotl(select[3]) ^ irotl(select[5]) ^ ((select[16] << 1) & 0XFEFEFEFE);
 
     // one for_loop to shift the content
-    memcpy(Output, Input+1, 20);
-    int8_t new_segment[4] = {select[25], temp[0], temp[1], temp[2]};
-    memcpy(Output+5, new_segment, 4);
-    int32_t new_end = temp[3] ^ 0;
-    //memcpy(Output+6, new_end, 1);
+    memcpy(Output, Input+1, 24);
+    int8_t new_segment[8] = {select[25], temp[0], temp[1], temp[2], temp[3]};
+    memcpy(Output+5, new_segment, 8);
 }
 
 void LFSR_int_Bytes(BYTE* Output, BYTE* Input)
@@ -61,22 +59,24 @@ void LFSR_int_Bytes(BYTE* Output, BYTE* Input)
 int main()
 {
     BYTE Input[25] = "ABCDEFGDIJKLMABCQRSDDDWX"; // fill with some random values
-    BYTE Output[25];
+    BYTE Output_byte[25] = {0};
 
     // call LFSR_in_Bytes 4 times and finally print Output
-    LFSR_int_Bytes(Output, Input);
+    LFSR_int_Bytes(Output_byte, Input);
     for(int x = 0; x < 3; x++)
-        LFSR_int_Bytes(Output, Output);
-    printf("Result of LFSR_in_Bytes:\n%s\n",Output);
+        LFSR_int_Bytes(Output_byte, Output_byte);
 
     // convert Input and Output to equivalent Int arrays and
-    // call LFSR_in_Int 1 time with the same Input and print Output
-    int32_t Out[7];
-    LFSR_in_Int(Out, (int32_t *) Input);
-    printf("Result of LFSR_in_Int:\n%s\n", Out);   
+    int32_t Output_byte_in_int[7];
+    memcpy(Output_byte_in_int, (int32_t *) Output_byte, BLOCK_SIZE);
 
-    printf("\n");
-    printHex(Output, BLOCK_SIZE);
-    printf("\n");
-    printHex((BYTE *) Out, BLOCK_SIZE);
+    // call LFSR_in_Int 1 time with the same Input and print Output
+    int32_t Output_int[7];
+    LFSR_in_Int(Output_int, (int32_t *) Input);
+
+    // Outputs should be equal
+    if(memcmp(Output_byte_in_int, Output_int, CRYPTO_TAGBYTES) == 0)
+        printf("Equal!\n");
+    else
+        printf("Not equal!\n");
 }
