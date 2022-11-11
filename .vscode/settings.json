@@ -6,7 +6,8 @@
         "string.h": "c",
         "api.h": "c",
         "chrono": "c",
-        "ctime": "c"
+        "ctime": "c",
+        "bit": "c"
     },
     "code-runner.runInTerminal": true
 }
