@@ -8,14 +8,14 @@
 // Function for left rotation of bytes
 uint8_t rotl(uint8_t a)
 {
-    return (a<<1) | ((a>>7) & 0X01010101);
+    return (a<<1) | (a>>7);
 }
 
 // The LFSR step function
 void LFSR_step(uint8_t* output, uint8_t* input)
 {
     // Calculating the new last byte and storing it in temp
-    uint8_t temp = rotl(input[0]) ^ rotl(input[2]) ^ ((input[13] << 1) & 0XFEFEFEFE);
+    uint8_t temp = rotl(input[0]) ^ rotl(input[2]) ^ (input[13] << 1);
 
     // Move the rest of the bytes left
     for(SIZE i = 1; i <= BLOCK_SIZE - 1; i++)
@@ -149,13 +149,14 @@ int enc)
             xor_int(mask_buffer, lfsr_next, IBLOCK_SIZE);
 
             memcpy(block_buffer, npub, CRYPTO_NPUBBYTES);
-            memset(block_buffer+ICRYPTO_NPUBBYTES, 0, IBLOCK_SIZE-ICRYPTO_NPUBBYTES);
+            memset(block_buffer+ICRYPTO_NPUBBYTES, 0, BLOCK_SIZE-CRYPTO_NPUBBYTES);
 
             xor_int(block_buffer, mask_buffer, IBLOCK_SIZE);
             permutation((BYTE *) block_buffer);
-            xor_int(block_buffer, (uint32_t *) M+BLOCK_SIZE*(i-1), IBLOCK_SIZE);
-            xor_int(block_buffer, mask_buffer, IBLOCK_SIZE);
 
+
+            xor_int(block_buffer, (uint32_t *) (M+BLOCK_SIZE*(i-1)), IBLOCK_SIZE);
+            xor_int(block_buffer, mask_buffer, IBLOCK_SIZE);
 
             // The last block could be not exactly 1 block size long
             // If it is the last block, copy mlen-m_index (remaining bytes, this could be block size long)

@@ -35,14 +35,6 @@ void writeData(FILE* fpo, int i, SIZE mlen, SIZE adlen, double time, double tpb)
   fprintf(fpo, "%i\t\t│\t%i\t\t│\t%i\t\t│\t%lf\t\t│\t%lf\n", i, (int) mlen, (int) adlen, time*1000000, tpb*1000000);
 }
 
-// Debug function, used to print a BYTE array in type 02X hexadecimal numbers
-void printHex(BYTE* text, SIZE length)
-{
-    for (int i = 0; i < length; i++) {
-      printf("%02X", text[i]);
-    }
-}
-
 #pragma region File Test
 // Runs test_count tests from input_file and writes the test results to output_file
 void runTests(int test_count, int test_repeat, BYTE* input_file, BYTE* output_file)
@@ -153,7 +145,7 @@ void runTests(int test_count, int test_repeat, BYTE* input_file, BYTE* output_fi
 #pragma endregion
 
 int main(int argc, char *argv[]) {
-  runTests(20, 10000, "test_data/LWC_AEAD_KAT_128_96.txt", "test_results/INTTEST3.txt");
+  runTests(1089, 1000, "test_data/LWC_AEAD_KAT_128_96.txt", "test_results/LINUX-RESULTS-BYTE.txt");
   return 0;
 }
 

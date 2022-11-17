@@ -3,6 +3,15 @@
 #include "my_implementation.h"
 #include "keccak.c"
 
+// Debug function, used to print a BYTE array in type 02X hexadecimal numbers
+void printHex(BYTE* text, SIZE length)
+{
+    for (int i = 0; i < length; i++) {
+      printf("%02X", text[i]);
+    }
+    printf("\n");
+}
+
 // Function for left rotation of bytes
 BYTE rotl(BYTE b)
 {
@@ -143,11 +152,15 @@ int enc)
         {
             memcpy(mask_buffer, lfsr_curr, BLOCK_SIZE);
             block_xor(mask_buffer, lfsr_next, BLOCK_SIZE);
+
             memcpy(block_buffer, npub, CRYPTO_NPUBBYTES);
             memset(block_buffer+CRYPTO_NPUBBYTES, 0, BLOCK_SIZE-CRYPTO_NPUBBYTES);
+            
             block_xor(block_buffer, mask_buffer, BLOCK_SIZE);
             permutation(block_buffer);
+
             block_xor(block_buffer, M+BLOCK_SIZE*(i-1), BLOCK_SIZE);
+
             block_xor(block_buffer, mask_buffer, BLOCK_SIZE);
 
             // The last block could be not exactly 1 block size long
