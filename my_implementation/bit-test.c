@@ -26,27 +26,38 @@ int8_t irotl(int8_t b)
     return (b << 1) | ((b >> 7) & 0X01010101);
 }
 
-void LFSR_in_Int(int32_t* Output, int32_t* Input)
+uint32_t LFSR_in_Int(uint32_t* Output, uint32_t* Input)
 {
-    // complete its inside
-    uint8_t select[25];
-    uint8_t temp[4];
+    // compute the "bytes" we need cycled
+    uint32_t r[2] = {(Input[0]<<1)|(Input[0]>>7 & 0X01010101), (Input[1]<<1)|(Input[1]>>7 & 0X01010101)};
 
-    memcpy(select, Input, 7);
+    uint8_t rotated[8] = {0};
+    memcpy(rotated, (uint8_t *) r, 8);
 
-    // compute Int temp;
-    temp[0] = irotl(select[0]) ^ irotl(select[2]) ^ ((select[13] << 1) & 0XFEFEFEFE);
-    temp[1] = irotl(select[1]) ^ irotl(select[3]) ^ ((select[14] << 1) & 0XFEFEFEFE);
-    temp[2] = irotl(select[2]) ^ irotl(select[4]) ^ ((select[15] << 1) & 0XFEFEFEFE);
-    temp[3] = irotl(select[3]) ^ irotl(select[5]) ^ ((select[16] << 1) & 0XFEFEFEFE);
+    // compute the last "byte" needed, the one that is shifted (these are bytes 13, 14, 15, 16 in the original state for the next 4 cycles)
+    uint32_t s[2] = {(Input[4]<<1 & 0XFEFEFEFE), (Input[5]<<1 & 0XFEFEFEFE)};
 
-    // one for_loop to shift the content
-    memcpy(Output, Input+1, 21);
-    int8_t new_segment[8] = {select[25], temp[0], temp[1], temp[2], temp[3]};
-    memcpy(Output+5, new_segment, 8);
+    uint8_t shifted[8] = {0};
+    memcpy(shifted, (uint8_t *) s, 8);
+
+    // compute the packed integers
+    uint32_t t1 = (rotated[0] << 24 | rotated[1] << 16 | rotated[2] << 8 | rotated[3]);
+    uint32_t t2 = (rotated[2] << 24 | rotated[3] << 16 | rotated[4] << 8 | rotated[5]);
+    // shifted is from Input 4 and 5 meaning shifted[0] is byte with index 12
+    uint32_t t3 = (shifted[1] << 24 | shifted[2] << 16 | shifted[3] << 8 | shifted[4]);
+
+    // compute the result and shift all "bytes" 4 times
+    uint32_t result = (t1 ^ t2 ^ t3);
+    uint32_t temp1 = Input[6] ^ (result >> 8);
+    uint32_t temp2 = result << 24;
+    memcpy(Output, Input+1, 5);
+    memcpy(Output+5, &temp1, 1);
+    memcpy(Output+6, &temp2, 1);
+
+    return result;
 }
 
-void LFSR_int_Bytes(BYTE* Output, BYTE* Input)
+BYTE LFSR_in_Bytes(BYTE* Output, BYTE* Input)
 {
     BYTE temp = brotl(Input[0]) ^ brotl(Input[2]) ^ (Input[13] << 1);
 
@@ -58,25 +69,30 @@ void LFSR_int_Bytes(BYTE* Output, BYTE* Input)
 
 int main()
 {
-    BYTE Input[25] = "ABCDEFGDIJKLMABCQRSDDDWX"; // fill with some random values
-    BYTE Output_byte[25] = {0};
+    BYTE Byte_test[25] = "ABCDEFGDIJKLMABCQRSDDDWX";
 
-    // call LFSR_in_Bytes 4 times and finally print Output
-    LFSR_int_Bytes(Output_byte, Input);
-    for(int x = 0; x < 3; x++)
-        LFSR_int_Bytes(Output_byte, Output_byte);
-
-    // convert Input and Output to equivalent Int arrays and
-    int32_t Output_byte_in_int[7];
-    memcpy(Output_byte_in_int, (int32_t *) Output_byte, BLOCK_SIZE);
+    for(int i = 0; i < 4; i++)
+    {
+        printf("%i: %02X\n", i, LFSR_in_Bytes(Byte_test, Byte_test));
+    }
 
     // call LFSR_in_Int 1 time with the same Input and print Output
-    int32_t Output_int[7];
-    LFSR_in_Int(Output_int, (int32_t *) Input);
+    BYTE Int_test[25] = "ABCDEFGDIJKLMABCQRSDDDWX"; // fill with some random values
+    uint32_t Int_test_int[7] = {0};
+    memcpy(Int_test_int, Int_test, 25);
 
-    // Outputs should be equal
-    if(memcmp(Output_byte_in_int, Output_int, CRYPTO_TAGBYTES) == 0)
-        printf("Equal!\n");
-    else
-        printf("Not equal!\n");
+    uint32_t int_result = LFSR_in_Int(Int_test_int , Int_test_int);
+
+    BYTE int_result_temps[4] = {0};
+    memcpy(int_result_temps, &int_result, 4);
+
+    for(int i = 0; i < 4; i++)
+    {
+        printf("%i: %02X\n", i, int_result_temps[i]);
+    }
+
+    printf("\nEND RESULT:\n");
+    printHex(Byte_test, BLOCK_SIZE);
+    printf("\n");
+    printHex((BYTE *) Int_test_int, BLOCK_SIZE);
 }
