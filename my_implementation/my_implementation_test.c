@@ -148,10 +148,3 @@ int main(int argc, char *argv[]) {
   runTests(1089, 1000, "test_data/LWC_AEAD_KAT_128_96.txt", "test_results/LINUX-RESULTS-BYTE.txt");
   return 0;
 }
-
-// Cone shaped graph, x-axis repetitions, y-axis is time/byte for fixed AD and fixed M
-
-// Time/Byte on y-axis, AD len on x-axis, fixed mlen
-// Vice-versa too
-
-// 

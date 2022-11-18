@@ -23,32 +23,43 @@ BYTE brotl(BYTE b)
 // Function for left rotation of ints
 int8_t irotl(int8_t b)
 {
-    return (b << 1) | ((b >> 7) & 0X01010101);
+    return (b << 1) | (b >> 7);
 }
 
 uint32_t LFSR_in_Int(uint32_t* Output, uint32_t* Input)
 {
     // compute the "bytes" we need cycled
-    uint32_t r[2] = {(Input[0]<<1)|(Input[0]>>7 & 0X01010101), (Input[1]<<1)|(Input[1]>>7 & 0X01010101)};
+    uint32_t r[2] = {(Input[0]<<1)|((Input[0]>>7) & 0X01010101), (Input[1]<<1)|((Input[1]>>7) & 0X01010101)};
 
     uint8_t rotated[8] = {0};
     memcpy(rotated, (uint8_t *) r, 8);
 
     // compute the last "byte" needed, the one that is shifted (these are bytes 13, 14, 15, 16 in the original state for the next 4 cycles)
-    uint32_t s[2] = {(Input[4]<<1 & 0XFEFEFEFE), (Input[5]<<1 & 0XFEFEFEFE)};
+    uint32_t s[2] = {((Input[4]<<1) & 0XFEFEFEFE), ((Input[5]<<1) & 0XFEFEFEFE)};
 
     uint8_t shifted[8] = {0};
     memcpy(shifted, (uint8_t *) s, 8);
 
     // compute the packed integers
-    uint32_t t1 = (rotated[0] << 24 | rotated[1] << 16 | rotated[2] << 8 | rotated[3]);
-    uint32_t t2 = (rotated[2] << 24 | rotated[3] << 16 | rotated[4] << 8 | rotated[5]);
+    uint32_t t1, t2, t3 = 0;
+
+    uint8_t t1s[4] = {rotated[0], rotated[1], rotated[2], rotated[3]};
+    memcpy(&t1, &t1s, 4);
+
+    uint8_t t2s[4] = {rotated[2], rotated[3], rotated[4], rotated[5]};
+    memcpy(&t2, &t2s, 4);
+
     // shifted is from Input 4 and 5 meaning shifted[0] is byte with index 12
-    uint32_t t3 = (shifted[1] << 24 | shifted[2] << 16 | shifted[3] << 8 | shifted[4]);
+    uint8_t t3s[4] = {shifted[1], shifted[2], shifted[3], shifted[4]};
+    memcpy(&t3, &t3s, 4);
 
     // compute the result and shift all "bytes" 4 times
     uint32_t result = (t1 ^ t2 ^ t3);
     uint32_t temp1 = Input[6] ^ (result >> 8);
+
+    uint8_t stemp1[4] = {0};
+    memcpy(stemp1, (uint8_t *) &temp1, 4);
+
     uint32_t temp2 = result << 24;
     memcpy(Output, Input+1, 5);
     memcpy(Output+5, &temp1, 1);
@@ -60,6 +71,7 @@ uint32_t LFSR_in_Int(uint32_t* Output, uint32_t* Input)
 BYTE LFSR_in_Bytes(BYTE* Output, BYTE* Input)
 {
     BYTE temp = brotl(Input[0]) ^ brotl(Input[2]) ^ (Input[13] << 1);
+    printf("\n--%02X--\n", Input[13] << 1);
 
     for (SIZE i = 1; i <= BLOCK_SIZE - 1; i++)
         Output[i-1] = Input[i];
