@@ -8,7 +8,10 @@
 // Function for left rotation of bytes
 uint8_t rotl(uint8_t a)
 {
-    return (a<<1) | (a>>7);
+
+    __asm__ ("ROR %0, %0, #7" :: "r" (a));
+    return a;
+    //return (a<<1) | (a>>7);
 }
 
 // The LFSR step function
