@@ -2,9 +2,11 @@
 #include <stdlib.h>
 #include "my_implementation.h"
 // Updated to KeccakP-200
-#include "KeccakP-200-SnP.h"
+#include "KeccakP-200-reference.c"
 // New library for uint32_t
 #include <stdint.h>
+
+#include <string.h>
 
 // Function for left rotation of bytes
 uint8_t rotl(uint8_t a)
@@ -126,7 +128,7 @@ int enc)
     // Expanded key
     uint32_t expanded_key[IBLOCK_SIZE] = {0};
     memcpy(expanded_key, K, CRYPTO_KEYBYTES);
-    permutation((BYTE * ) expanded_key);
+    KeccakP200_Permute_18rounds(expanded_key);
     memcpy(lfsr_curr, expanded_key, BLOCK_SIZE);
 
     // Current index in message
@@ -153,7 +155,7 @@ int enc)
             memset(block_buffer+ICRYPTO_NPUBBYTES, 0, BLOCK_SIZE-CRYPTO_NPUBBYTES);
 
             xor_int(block_buffer, mask_buffer, IBLOCK_SIZE);
-            permutation((BYTE *) block_buffer);
+            KeccakP200_Permute_18rounds(block_buffer);
 
 
             xor_int(block_buffer, (uint32_t *) (M+BLOCK_SIZE*(i-1)), IBLOCK_SIZE);
@@ -175,7 +177,7 @@ int enc)
             block_ad_get((BYTE *) block_buffer, npub, A, adlen, i);
 
             xor_int(block_buffer, lfsr_next, IBLOCK_SIZE);
-            permutation((BYTE *) block_buffer);
+            KeccakP200_Permute_18rounds(block_buffer);
             xor_int(block_buffer, lfsr_next, IBLOCK_SIZE);
             xor_int(tag_buffer, block_buffer, IBLOCK_SIZE);
         }
@@ -190,7 +192,7 @@ int enc)
             xor_int(mask_buffer, lfsr_next, IBLOCK_SIZE);
             block_c_get((BYTE *) block_buffer, enc ? C : M, mlen, i - 2);
             xor_int(block_buffer, mask_buffer, IBLOCK_SIZE);
-            permutation((BYTE *) block_buffer);
+            KeccakP200_Permute_18rounds(block_buffer);
             xor_int(block_buffer, mask_buffer, IBLOCK_SIZE);
             xor_int(tag_buffer, block_buffer, IBLOCK_SIZE);
         }
@@ -202,7 +204,7 @@ int enc)
     }
 
     xor_int(tag_buffer, (uint32_t *) expanded_key, IBLOCK_SIZE);
-    permutation((BYTE *) tag_buffer);
+    KeccakP200_Permute_18rounds(tag_buffer);
     xor_int(tag_buffer, (uint32_t *) expanded_key, IBLOCK_SIZE);
     memcpy(T, tag_buffer, CRYPTO_TAGBYTES);
 }

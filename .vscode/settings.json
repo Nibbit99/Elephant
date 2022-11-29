@@ -9,7 +9,8 @@
         "ctime": "c",
         "bit": "c",
         "keccakp-200-snp.h": "c",
-        "my_implementation.h": "c"
+        "my_implementation.h": "c",
+        "stdint.h": "c"
     },
     "code-runner.runInTerminal": true
 }
