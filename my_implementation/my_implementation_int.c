@@ -1,15 +1,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "my_implementation.h"
-#include "keccak.c"
+// Updated to KeccakP-200
+#include "KeccakP-200-SnP.h"
 // New library for uint32_t
 #include <stdint.h>
 
 // Function for left rotation of bytes
 uint8_t rotl(uint8_t a)
 {
-    // __asm__ ("ROR %0, %0, #7" :: "r" (a));
-    // return a;
     return (a<<1) | (a>>7);
 }
 

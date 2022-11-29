@@ -7,7 +7,9 @@
         "api.h": "c",
         "chrono": "c",
         "ctime": "c",
-        "bit": "c"
+        "bit": "c",
+        "keccakp-200-snp.h": "c",
+        "my_implementation.h": "c"
     },
     "code-runner.runInTerminal": true
 }
