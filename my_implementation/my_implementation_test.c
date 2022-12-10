@@ -1,5 +1,5 @@
 #include "my_implementation.h"
-#include "my_implementation_int.c"
+#include "my_implementation_byte.c"
 #include <time.h>
 
 // Maximum line length of the input file
@@ -145,6 +145,6 @@ void runTests(int test_count, int test_repeat, BYTE* input_file, BYTE* output_fi
 #pragma endregion
 
 int main(int argc, char *argv[]) {
-  runTests(1089, 1000, "test_data/LWC_AEAD_KAT_128_96.txt", "test_results/LINUX-RESULTS-KECCAKF.txt");
+  runTests(1089, 10000, "test_data/LWC_AEAD_KAT_128_96.txt", "test_results/LINUX-RESULTS-KECCAKF.txt");
   return 0;
 }
