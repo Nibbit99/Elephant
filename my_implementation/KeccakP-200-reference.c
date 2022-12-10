@@ -281,8 +281,9 @@ void KeccakP200Round(tKeccakLane *state, unsigned int indexRound)
 #ifdef KeccakReference
     displayRoundNumber(3, indexRound);
 #endif
-
+    //THETA
     theta(state);
+    //ENDTHETA
 #ifdef KeccakReference
     displayStateAsLanes(3, "After theta", state, 200);
 #endif
