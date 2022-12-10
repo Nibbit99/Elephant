@@ -147,6 +147,6 @@ void runTests(int test_count, int test_repeat, BYTE* input_file, BYTE* output_fi
 #pragma endregion
 
 int main(int argc, char *argv[]) {
-  runTests(1089, 10000, "test_data/LWC_AEAD_KAT_128_96.txt", "test_results/LINUX-RESULTS-KECCAKP-Compact.txt");
+  runTests(1089, 10000, "test_data/LWC_AEAD_KAT_128_96.txt", "test_results/LINUX-RESULTS-KECCAKP.txt");
   return 0;
 }
