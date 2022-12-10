@@ -7,8 +7,6 @@
 #include <string.h>
 #include <stdint.h>
 
-#include <string.h>
-
 // Function for left rotation of bytes
 uint8_t rotl(uint8_t a)
 {

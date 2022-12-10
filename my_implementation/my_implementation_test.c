@@ -39,6 +39,7 @@ void writeData(FILE* fpo, int i, SIZE mlen, SIZE adlen, double time, double tpb)
 // Runs test_count tests from input_file and writes the test results to output_file
 void runTests(int test_count, int test_repeat, BYTE* input_file, BYTE* output_file)
 {
+    printf("Starting tests for: %s\n", KeccakP200_implementation);
     // Initialize everything needed for measuring time
     clock_t begin, end;
     double current_time = 0;
@@ -140,11 +141,12 @@ void runTests(int test_count, int test_repeat, BYTE* input_file, BYTE* output_fi
     fprintf(fpo, "──────────────────────────────────────────────────────────────\n\n");
     fprintf(fpo, "\tAVG TIME PER ENCRYPTION:\n\t%f MICROSECONDS\n\tAVG TIME PER BYTE:\n\t%f\n\n", total_time/test_count*1000000, total_time_byte/test_count*1000000);
     fprintf(fpo, "\t%i/%i CORRECT\n", test_count-test_errors, test_count);
+    fprintf(fpo, KeccakP200_implementation);
     fclose(fpo);
 }
 #pragma endregion
 
 int main(int argc, char *argv[]) {
-  runTests(1089, 10000, "test_data/LWC_AEAD_KAT_128_96.txt", "test_results_comparison/LINUX-RESULTS-KECCAKP-Compact.txt");
+  runTests(1089, 10000, "test_data/LWC_AEAD_KAT_128_96.txt", "test_results/LINUX-RESULTS-KECCAKP-Compact.txt");
   return 0;
 }
