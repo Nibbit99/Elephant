@@ -11,7 +11,8 @@
         "keccakp-200-snp.h": "c",
         "my_implementation.h": "c",
         "stdint.h": "c",
-        "time.h": "c"
+        "time.h": "c",
+        "inttypes.h": "c"
     },
     "code-runner.runInTerminal": true
 }
