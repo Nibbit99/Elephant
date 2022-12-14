@@ -44,15 +44,6 @@ uint32_t xor_int(uint32_t *A_int, uint32_t *B_int, int len)
         A_int[i] ^= B_int[i];
 }
 
-void print_whole(BYTE* name, BYTE* BUFFER, SIZE s)
-{
-    printf("%s: ", name);
-    printf("%"PRIX32 "", BUFFER[0]);
-    for(int i = 1; i < s; i++)
-        printf("-%" PRIX32 "", BUFFER[i]);
-    printf("\n");
-}
-
 // Grab a block of ad, using the index, from (nonce||ad||1)
 void block_ad_get(BYTE* output, const BYTE* npub, const BYTE* A, SIZE adlen, SIZE index)
 {
@@ -62,7 +53,6 @@ void block_ad_get(BYTE* output, const BYTE* npub, const BYTE* A, SIZE adlen, SIZ
         memcpy(output, npub, CRYPTO_NPUBBYTES);
         length_with_nonce += CRYPTO_NPUBBYTES;
     }
-    print_whole("A0", output, BLOCK_SIZE);
 
     const SIZE block_pos = index * BLOCK_SIZE - (index != 0) * CRYPTO_NPUBBYTES;
     // Add a padding block if adlen % BLOCK_SIZE = 0
@@ -76,11 +66,7 @@ void block_ad_get(BYTE* output, const BYTE* npub, const BYTE* A, SIZE adlen, SIZ
     const SIZE adlen_remaining  = adlen - block_pos;
     if(space_remaining <= adlen_remaining) // Enough AD to fill the block
     {
-        printf("\nSR: %i, AR: %i, BP: %i\n", (int) space_remaining, (int) adlen_remaining, (int) block_pos);
-        print_whole("ADORG", (BYTE *) A, BLOCK_SIZE);
-        print_whole("A2.0", output, BLOCK_SIZE);
         memcpy(output + length_with_nonce, A + block_pos, space_remaining);
-        print_whole("A2.1", output, BLOCK_SIZE);
     }
     else { // If AD doesn't fill the block completely, add padding
         if(adlen_remaining > 0) // If the AD is not empty
@@ -125,7 +111,6 @@ const BYTE* npub,
 const BYTE* K,
 int enc)
 {
-    print_whole("AD0", (BYTE *) A, BLOCK_SIZE);
     // The amount of cipher blocks is the message length devided by block size + 1 for padding
     const SIZE cblocks_n  = mlen / BLOCK_SIZE + 1;
     const SIZE mblocks_n  = (mlen % BLOCK_SIZE) ? cblocks_n : cblocks_n - 1;
@@ -241,7 +226,6 @@ const BYTE* nsec,
 const BYTE* npub,
 const BYTE* K)
 {
-    print_whole("AD00", (BYTE *) A, BLOCK_SIZE);
     delirium_aead(C, T, M, mlen, A, adlen, nsec, npub, K, 1);
     return 0;
 }

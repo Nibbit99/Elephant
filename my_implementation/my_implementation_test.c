@@ -71,15 +71,15 @@ void runTests(int test_count, int test_repeat, BYTE* input_file, BYTE* output_fi
     // Creating buffers for each of the test variables
     BYTE test_key[CRYPTO_KEYBYTES + 1];
     BYTE test_npub[CRYPTO_NPUBBYTES + 1];
-    BYTE test_message1[TEST_MAX_SIZE + 1];
+    BYTE test_control_CT[TEST_MAX_SIZE + 1];
+    BYTE test_message2[TEST_MAX_SIZE + CRYPTO_TAGBYTES + 1];
     BYTE test_ad[TEST_MAX_SIZE + 1];
-    SIZE test_mlen = TEST_MAX_SIZE;
-    SIZE test_adlen = TEST_MAX_SIZE;
-    BYTE test_message2[TEST_MAX_SIZE + 1];
-    BYTE test_ct[TEST_MAX_SIZE + CRYPTO_TAGBYTES];
-    SIZE test_clen = TEST_MAX_SIZE;
     BYTE test_cipher[TEST_MAX_SIZE + CRYPTO_TAGBYTES + 1];
     BYTE test_tag[CRYPTO_TAGBYTES];
+    SIZE test_mlen = TEST_MAX_SIZE;
+    SIZE test_clen = TEST_MAX_SIZE;
+    SIZE test_adlen = TEST_MAX_SIZE;
+    BYTE test_ct[TEST_MAX_SIZE + CRYPTO_TAGBYTES];
 
     // Read lines and encrypt
     // test_errors keeps track of all the incorrect encryptions
@@ -93,21 +93,17 @@ void runTests(int test_count, int test_repeat, BYTE* input_file, BYTE* output_fi
       fgets(line, sizeof(line), fp);
       getData(test_key, line, &line_length, fp);
       getData(test_npub, line, &line_length, fp);
-      getData(test_message1, line, &line_length, fp);
-      getData(test_ad, line, &line_length, fp);
-      print_whole("TTA000", test_ad, BLOCK_SIZE);
+      getData(test_control_CT, line, &line_length, fp);
       test_mlen = line_length;
+      getData(test_ad, line, &line_length, fp);
       test_adlen = line_length;
-      print_whole("TTA00", test_ad, BLOCK_SIZE);
       getData(test_message2, line, &line_length, fp);
-
-      print_whole("TTA0", test_ad, BLOCK_SIZE);
 
       // Keep track of the clock cycle time of test_repeat repetitions of encryption
       begin = clock();
       // Repeat test_repeat times for an accurate and average time
       for(int j = 0; j < test_repeat; j++)
-        delirium_encrypt(test_cipher, test_tag, test_message1, test_mlen, test_ad, test_adlen, NULL, test_npub, test_key);
+        delirium_encrypt(test_cipher, test_tag, test_control_CT, test_mlen, test_ad, test_adlen, NULL, test_npub, test_key);
       end = clock();
 
       memcpy(test_ct, test_cipher, TEST_MAX_SIZE);
@@ -151,6 +147,6 @@ void runTests(int test_count, int test_repeat, BYTE* input_file, BYTE* output_fi
 #pragma endregion
 
 int main(int argc, char *argv[]) {
-  runTests(1089, 1, "test_data/LWC_AEAD_KAT_128_96.txt", "test_results/TRASH_RESULTS.txt");
+  runTests(1089, 10, "test_data/LWC_AEAD_KAT_128_96.txt", "test_results/ARM_with_Keccak_Reference.txt");
   return 0;
 }
