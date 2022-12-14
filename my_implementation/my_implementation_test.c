@@ -72,14 +72,14 @@ void runTests(int test_count, int test_repeat, BYTE* input_file, BYTE* output_fi
     BYTE test_key[CRYPTO_KEYBYTES + 1];
     BYTE test_npub[CRYPTO_NPUBBYTES + 1];
     BYTE test_message1[TEST_MAX_SIZE + 1];
-    BYTE test_message2[TEST_MAX_SIZE + 1];
     BYTE test_ad[TEST_MAX_SIZE + 1];
+    SIZE test_mlen = TEST_MAX_SIZE;
+    SIZE test_adlen = TEST_MAX_SIZE;
+    BYTE test_message2[TEST_MAX_SIZE + 1];
+    BYTE test_ct[TEST_MAX_SIZE + CRYPTO_TAGBYTES];
+    SIZE test_clen = TEST_MAX_SIZE;
     BYTE test_cipher[TEST_MAX_SIZE + CRYPTO_TAGBYTES + 1];
     BYTE test_tag[CRYPTO_TAGBYTES];
-    SIZE test_mlen = TEST_MAX_SIZE;
-    SIZE test_clen = TEST_MAX_SIZE;
-    SIZE test_adlen = TEST_MAX_SIZE;
-    BYTE test_ct[TEST_MAX_SIZE + CRYPTO_TAGBYTES];
 
     // Read lines and encrypt
     // test_errors keeps track of all the incorrect encryptions
@@ -94,10 +94,14 @@ void runTests(int test_count, int test_repeat, BYTE* input_file, BYTE* output_fi
       getData(test_key, line, &line_length, fp);
       getData(test_npub, line, &line_length, fp);
       getData(test_message1, line, &line_length, fp);
-      test_mlen = line_length;
       getData(test_ad, line, &line_length, fp);
+      print_whole("TTA000", test_ad, BLOCK_SIZE);
+      test_mlen = line_length;
       test_adlen = line_length;
+      print_whole("TTA00", test_ad, BLOCK_SIZE);
       getData(test_message2, line, &line_length, fp);
+
+      print_whole("TTA0", test_ad, BLOCK_SIZE);
 
       // Keep track of the clock cycle time of test_repeat repetitions of encryption
       begin = clock();
@@ -147,6 +151,6 @@ void runTests(int test_count, int test_repeat, BYTE* input_file, BYTE* output_fi
 #pragma endregion
 
 int main(int argc, char *argv[]) {
-  runTests(1089, 10000, "test_data/LWC_AEAD_KAT_128_96.txt", "test_results/TRASH_RESULTS.txt");
+  runTests(1089, 1, "test_data/LWC_AEAD_KAT_128_96.txt", "test_results/TRASH_RESULTS.txt");
   return 0;
 }
