@@ -32,7 +32,8 @@ void getData(BYTE* output, BYTE* line, int *length, FILE* fp)
 void writeData(FILE* fpo, int i, SIZE mlen, SIZE adlen, double time, double tpb)
 {
   // Since time is in seconds, multiply by 1.000.000 to get the time in microseconds
-  fprintf(fpo, "%i\t\t│\t%i\t\t│\t%i\t\t│\t%lf\t\t│\t%lf\n", i, (int) mlen, (int) adlen, time*1000000, tpb*1000000);
+  //fprintf(fpo, "%i\t\t│\t%i\t\t│\t%i\t\t│\t%lf\t\t│\t%lf\n", i, (int) mlen, (int) adlen, time*1000000, tpb*1000000);
+  fprintf(fpo, "%lf\n", time*1000000);
 }
 
 #pragma region File Test
