@@ -1,6 +1,6 @@
 # Elephant AEAD
 
-Reference implementation of Dumbo, Jumbo and Delirium in C99.
+Optimized implementation of Delirium for ARMv7 architectures.
 
 arm-linux-gnueabihf-gcc -static -omy_implementation_arm my_implementation_test.c KeccakP-200-compact.c
 
