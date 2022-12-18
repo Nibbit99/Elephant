@@ -2,6 +2,11 @@
 
 Optimized implementation of Delirium for ARMv7 architectures.
 
-arm-linux-gnueabihf-gcc -static -omy_implementation_arm my_implementation_test.c KeccakP-200-compact.c
+Reference implementation by Beyne.
 
-gcc my_implementation_test.c KeccakP-200-compact.c -o my_implementation_lin
+
+
+
+%arm-linux-gnueabihf-gcc -static -omy_implementation_arm my_implementation_test.c KeccakP-200-compact.c
+
+%gcc my_implementation_test.c KeccakP-200-compact.c -o my_implementation_lin
