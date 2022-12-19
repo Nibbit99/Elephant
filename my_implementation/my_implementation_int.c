@@ -1,9 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "my_implementation.h"
-// Updated to KeccakP-200
+// Switched to KeccakP-200
 #include "KeccakP-200-SnP.h"
-// New library for uint32_t
+// Library for uint32_t
 #include <string.h>
 #include <stdint.h>
 
