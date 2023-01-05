@@ -72,8 +72,8 @@ void runTests(int test_count, int test_repeat, BYTE* input_file, BYTE* output_fi
     // Creating buffers for each of the test variables
     BYTE test_key[CRYPTO_KEYBYTES + 1];
     BYTE test_npub[CRYPTO_NPUBBYTES + 1];
-    BYTE test_control_CT[TEST_MAX_SIZE + 1];
-    BYTE test_message2[TEST_MAX_SIZE + CRYPTO_TAGBYTES + 1];
+    BYTE test_message[TEST_MAX_SIZE + 1];
+    BYTE test_control_CT[TEST_MAX_SIZE + CRYPTO_TAGBYTES + 1];
     BYTE test_ad[TEST_MAX_SIZE + 1];
     BYTE test_cipher[TEST_MAX_SIZE + CRYPTO_TAGBYTES + 1];
     BYTE test_tag[CRYPTO_TAGBYTES];
@@ -94,24 +94,24 @@ void runTests(int test_count, int test_repeat, BYTE* input_file, BYTE* output_fi
       fgets(line, sizeof(line), fp);
       getData(test_key, line, &line_length, fp);
       getData(test_npub, line, &line_length, fp);
-      getData(test_control_CT, line, &line_length, fp);
+      getData(test_message, line, &line_length, fp);
       test_mlen = line_length;
       getData(test_ad, line, &line_length, fp);
       test_adlen = line_length;
-      getData(test_message2, line, &line_length, fp);
+      getData(test_control_CT, line, &line_length, fp);
 
       // Keep track of the clock cycle time of test_repeat repetitions of encryption
       begin = clock();
       // Repeat test_repeat times for an accurate and average time
       for(int j = 0; j < test_repeat; j++)
-        delirium_encrypt(test_cipher, test_tag, test_control_CT, test_mlen, test_ad, test_adlen, NULL, test_npub, test_key);
+        delirium_encrypt(test_cipher, test_tag, test_message, test_mlen, test_ad, test_adlen, NULL, test_npub, test_key);
       end = clock();
 
       memcpy(test_ct, test_cipher, TEST_MAX_SIZE);
       memcpy(test_ct + test_mlen, test_tag, CRYPTO_TAGBYTES);
 
       // Check if the result coincides with the test data result
-      if(memcmp(test_message2, test_ct, test_mlen + CRYPTO_TAGBYTES) == 0)
+      if(memcmp(test_control_CT, test_ct, test_mlen + CRYPTO_TAGBYTES) == 0)
         printf("%i: CORRECT\n", i);
       else
       {
